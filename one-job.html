@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Job — Daily Home Tasks</title>
+<meta name="description" content="One small home job a day. Chip away at the list.">
+<meta name="theme-color" content="#7a9e7e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="One Job">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #f5f0e8;
+    --warm-white: #faf8f4;
+    --sage: #7a9e7e;
+    --sage-light: #a8c5ab;
+    --sage-dark: #5a7a5e;
+    --clay: #c4845a;
+    --clay-light: #e8b594;
+    --ink: #2c2a26;
+    --ink-mid: #5a5650;
+    --ink-light: #9a9590;
+    --linen: #e8e2d6;
+    --linen-dark: #d4cdc0;
+    --gold: #c9a84c;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px 60px;
+  }
+
+  /* Subtle texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    padding: 48px 0 32px;
+  }
+
+  .wordmark {
+    font-family: 'Lora', serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+  }
+
+  .date-display {
+    font-family: 'Lora', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--ink);
+    margin-top: 8px;
+    line-height: 1.2;
+  }
+
+  .streak-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    background: var(--sage);
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    padding: 5px 14px;
+    border-radius: 20px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  .streak-pill.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .streak-icon { font-size: 14px; }
+
+  /* ── Today's Job Card ── */
+  .today-section {
+    margin-bottom: 24px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 10px;
+    padding-left: 2px;
+  }
+
+  .job-card {
+    background: var(--warm-white);
+    border: 1px solid var(--linen-dark);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+  }
+
+  .job-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--sage);
+    border-radius: 4px 0 0 4px;
+    transition: background 0.4s;
+  }
+
+  .job-card.done::before { background: var(--gold); }
+
+  .job-name {
+    font-family: 'Lora', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+    margin-bottom: 8px;
+    transition: opacity 0.3s;
+  }
+
+  .job-card.done .job-name {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+
+  .job-meta {
+    font-size: 13px;
+    color: var(--ink-light);
+    font-style: italic;
+  }
+
+  .job-card.done .job-meta { opacity: 0.5; }
+
+  .done-badge {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--gold);
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 10px;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  .job-card.done .done-badge {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* ── Actions ── */
+  .card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-primary {
+    background: var(--sage);
+    color: white;
+    flex: 1;
+  }
+  .btn-primary:hover { background: var(--sage-dark); }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--linen-dark);
+    color: var(--ink-mid);
+  }
+  .btn-ghost:hover { background: var(--linen); }
+
+  /* ── Suggest another ── */
+  .suggest-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .suggest-link {
+    font-size: 12px;
+    color: var(--sage);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0;
+  }
+  .suggest-link:hover { color: var(--sage-dark); }
+
+  /* ── No task state ── */
+  .no-task {
+    text-align: center;
+    padding: 32px 0 8px;
+    color: var(--ink-light);
+    font-size: 14px;
+    font-style: italic;
+  }
+
+  /* ── Add Job ── */
+  .add-section { margin-bottom: 24px; }
+
+  .add-form {
+    display: flex;
+    gap: 8px;
+  }
+
+  .add-input {
+    flex: 1;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 11px 16px;
+    border: 1px solid var(--linen-dark);
+    border-radius: 10px;
+    background: var(--warm-white);
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .add-input:focus { border-color: var(--sage-light); }
+  .add-input::placeholder { color: var(--ink-light); }
+
+  .btn-add {
+    background: var(--clay);
+    color: white;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-size: 20px;
+    line-height: 1;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-add:hover { background: #b07040; }
+
+  /* ── Job Queue ── */
+  .queue-section { margin-bottom: 28px; }
+
+  .queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--warm-white);
+    border: 1px solid var(--linen-dark);
+    border-radius: 10px;
+    padding: 11px 14px;
+    animation: slideIn 0.25s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .queue-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--linen-dark);
+    flex-shrink: 0;
+  }
+
+  .queue-name {
+    flex: 1;
+    font-size: 14px;
+    color: var(--ink-mid);
+  }
+
+  .queue-delete {
+    background: none;
+    border: none;
+    color: var(--ink-light);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+  .queue-delete:hover { opacity: 1; }
+
+  .empty-queue {
+    text-align: center;
+    padding: 20px;
+    color: var(--ink-light);
+    font-size: 13px;
+    font-style: italic;
+    border: 1px dashed var(--linen-dark);
+    border-radius: 10px;
+  }
+
+  /* ── History ── */
+  .history-section { margin-bottom: 28px; }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--warm-white);
+    border: 1px solid var(--linen);
+  }
+
+  .history-check {
+    color: var(--sage);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .history-text { flex: 1; }
+
+  .history-name {
+    font-size: 14px;
+    color: var(--ink-mid);
+  }
+
+  .history-date {
+    font-size: 11px;
+    color: var(--ink-light);
+    margin-top: 1px;
+  }
+
+  .clear-history-btn {
+    font-size: 11px;
+    color: var(--ink-light);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: 'DM Sans', sans-serif;
+    margin-top: 8px;
+    display: block;
+    text-align: right;
+    width: 100%;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--linen-dark);
+    margin: 4px 0 20px;
+  }
+
+  /* ── Confetti (gentle) ── */
+  .confetti-wrap {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    overflow: hidden;
+  }
+
+  .petal {
+    position: absolute;
+    top: -20px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50% 0;
+    animation: fall linear forwards;
+    opacity: 0;
+  }
+
+  @keyframes fall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 0.8; }
+    100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+  }
+
+  /* ── Collapsible header row ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .section-toggle {
+    font-size: 11px;
+    color: var(--ink-light);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0;
+  }
+
+  .collapsible {
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.3s;
+    max-height: 1000px;
+    opacity: 1;
+  }
+  .collapsible.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="confetti-wrap" id="confettiWrap"></div>
+
+<div class="app">
+
+  <header>
+    <div class="wordmark">One Job</div>
+    <div class="date-display" id="dateDisplay"></div>
+    <div class="streak-pill" id="streakPill">
+      <span class="streak-icon">🌿</span>
+      <span id="streakText"></span>
+    </div>
+  </header>
+
+  <!-- Today -->
+  <section class="today-section">
+    <div class="section-label">Today's Job</div>
+    <div id="todayCard"></div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Add Job -->
+  <section class="add-section">
+    <div class="section-label">Add a Job to the List</div>
+    <div class="add-form">
+      <input type="text" class="add-input" id="addInput" placeholder="e.g. Clean bathroom mirror…" maxlength="80">
+      <button class="btn-add" id="addBtn" title="Add">+</button>
+    </div>
+  </section>
+
+  <!-- Queue -->
+  <section class="queue-section">
+    <div class="section-header" id="queueHeader">
+      <div class="section-label" style="margin-bottom:0">Job Queue</div>
+      <button class="section-toggle" id="queueToggle">hide</button>
+    </div>
+    <div class="collapsible" id="queueCollapsible">
+      <div class="queue-list" id="queueList"></div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- History -->
+  <section class="history-section">
+    <div class="section-header" id="historyHeader">
+      <div class="section-label" style="margin-bottom:0">Completed Jobs</div>
+      <button class="section-toggle" id="historyToggle">hide</button>
+    </div>
+    <div class="collapsible" id="historyCollapsible">
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'one_job_v1';
+
+function loadState() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState();
+  } catch { return defaultState(); }
+}
+
+function defaultState() {
+  return {
+    queue: [],
+    history: [],
+    today: null,        // { name, date }
+    todayDone: false,
+    streak: 0,
+    lastDoneDate: null,
+    queueOpen: true,
+    historyOpen: true,
+    undoSnapshot: null, // saved state before last markDone
+  };
+}
+
+function saveState(s) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+let state = loadState();
+
+// ── Date helpers ────────────────────────────────────────────────────────
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function niceToday() {
+  return new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+// ── Streak logic ────────────────────────────────────────────────────────
+function checkAndUpdateStreak(justCompleted) {
+  const today = todayStr();
+  if (!justCompleted) return;
+
+  const last = state.lastDoneDate;
+  if (last === today) return; // already counted
+
+  if (last) {
+    const prev = new Date(last);
+    const now = new Date(today);
+    const diff = (now - prev) / 86400000;
+    if (diff === 1) {
+      state.streak = (state.streak || 0) + 1;
+    } else if (diff > 1) {
+      state.streak = 1;
+    }
+  } else {
+    state.streak = 1;
+  }
+  state.lastDoneDate = today;
+}
+
+// ── Suggest today's job ─────────────────────────────────────────────────
+function suggestJob(forceNew) {
+  const today = todayStr();
+
+  // If today already has a job and we're not forcing, keep it
+  if (state.today && state.today.date === today && !forceNew) return;
+
+  if (state.queue.length === 0) {
+    state.today = null;
+    state.todayDone = false;
+    return;
+  }
+
+  // Pick random from queue
+  const idx = Math.floor(Math.random() * state.queue.length);
+  state.today = { name: state.queue[idx], date: today, idx };
+  state.todayDone = false;
+  saveState(state);
+}
+
+// ── Mark done ───────────────────────────────────────────────────────────
+function markDone() {
+  if (!state.today || state.todayDone) return;
+
+  // Save undo snapshot before making changes
+  state.undoSnapshot = JSON.parse(JSON.stringify({
+    queue: state.queue,
+    history: state.history,
+    today: state.today,
+    todayDone: state.todayDone,
+    streak: state.streak,
+    lastDoneDate: state.lastDoneDate,
+  }));
+
+  state.todayDone = true;
+
+  // Remove from queue
+  state.queue = state.queue.filter(j => j !== state.today.name);
+
+  // Add to history
+  state.history.unshift({ name: state.today.name, date: todayStr() });
+  if (state.history.length > 60) state.history = state.history.slice(0, 60);
+
+  checkAndUpdateStreak(true);
+  saveState(state);
+
+  renderAll();
+  spawnPetals();
+}
+
+// ── Undo complete ────────────────────────────────────────────────────────
+function undoComplete() {
+  if (!state.undoSnapshot) return;
+  const snap = state.undoSnapshot;
+  state.queue = snap.queue;
+  state.history = snap.history;
+  state.today = snap.today;
+  state.todayDone = snap.todayDone;
+  state.streak = snap.streak;
+  state.lastDoneDate = snap.lastDoneDate;
+  state.undoSnapshot = null;
+  saveState(state);
+  renderAll();
+}
+
+// ── Confetti ────────────────────────────────────────────────────────────
+function spawnPetals() {
+  const wrap = document.getElementById('confettiWrap');
+  const colours = ['#7a9e7e', '#a8c5ab', '#c9a84c', '#c4845a', '#d4cdc0'];
+  for (let i = 0; i < 28; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'petal';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.background = colours[Math.floor(Math.random() * colours.length)];
+      p.style.animationDuration = (2 + Math.random() * 2) + 's';
+      p.style.animationDelay = (Math.random() * 0.5) + 's';
+      p.style.width = p.style.height = (6 + Math.random() * 6) + 'px';
+      wrap.appendChild(p);
+      setTimeout(() => p.remove(), 4000);
+    }, i * 60);
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────────────
+function renderHeader() {
+  document.getElementById('dateDisplay').textContent = niceToday();
+
+  const pill = document.getElementById('streakPill');
+  const streakText = document.getElementById('streakText');
+  if (state.streak >= 2) {
+    streakText.textContent = `${state.streak} day streak`;
+    pill.classList.add('visible');
+  } else if (state.streak === 1) {
+    streakText.textContent = `Day 1 — keep going`;
+    pill.classList.add('visible');
+  } else {
+    pill.classList.remove('visible');
+  }
+}
+
+function renderTodayCard() {
+  const container = document.getElementById('todayCard');
+
+  if (!state.today) {
+    container.innerHTML = `
+      <div class="no-task">
+        ${state.queue.length === 0
+          ? 'Add some jobs to the list below to get started.'
+          : 'Tap <em>Suggest a Job</em> to get your task for today.'}
+      </div>
+      ${state.queue.length > 0 ? `<div style="margin-top:12px"><button class="btn btn-primary" id="suggestBtn" style="width:100%">Suggest a Job →</button></div>` : ''}
+    `;
+    document.getElementById('suggestBtn')?.addEventListener('click', () => {
+      suggestJob(true);
+      renderAll();
+    });
+    return;
+  }
+
+  const done = state.todayDone;
+
+  container.innerHTML = `
+    <div class="job-card ${done ? 'done' : ''}">
+      <div class="done-badge">Done ✓</div>
+      <div class="job-name">${escHtml(state.today.name)}</div>
+      <div class="job-meta">Suggested for today</div>
+      <div class="card-actions">
+        <button class="btn btn-primary" id="doneBtn" ${done ? 'disabled' : ''}>${done ? '✓ Completed' : 'Mark as Done'}</button>
+        ${done
+          ? `<button class="btn btn-ghost" id="undoBtn">↩ Undo</button>`
+          : `<button class="btn btn-ghost" id="skipBtn">Different Job</button>`
+        }
+      </div>
+    </div>
+  `;
+
+  document.getElementById('doneBtn')?.addEventListener('click', markDone);
+  document.getElementById('skipBtn')?.addEventListener('click', () => {
+    suggestJob(true);
+    renderAll();
+  });
+  document.getElementById('undoBtn')?.addEventListener('click', undoComplete);
+}
+
+function renderQueue() {
+  const list = document.getElementById('queueList');
+  const toggle = document.getElementById('queueToggle');
+  const coll = document.getElementById('queueCollapsible');
+
+  toggle.textContent = state.queueOpen ? 'hide' : 'show';
+  coll.classList.toggle('collapsed', !state.queueOpen);
+
+  if (state.queue.length === 0) {
+    list.innerHTML = `<div class="empty-queue">No jobs queued — add some above.</div>`;
+    return;
+  }
+
+  list.innerHTML = state.queue.map((job, i) => `
+    <div class="queue-item">
+      <div class="queue-dot"></div>
+      <div class="queue-name">${escHtml(job)}</div>
+      <button class="queue-delete" data-i="${i}" title="Remove">×</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.queue-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.dataset.i);
+      state.queue.splice(i, 1);
+      // If today's job was this one, clear it
+      if (state.today && state.today.name === state.queue[i]) {
+        state.today = null; state.todayDone = false;
+      }
+      saveState(state);
+      renderAll();
+    });
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const toggle = document.getElementById('historyToggle');
+  const coll = document.getElementById('historyCollapsible');
+
+  toggle.textContent = state.historyOpen ? 'hide' : 'show';
+  coll.classList.toggle('collapsed', !state.historyOpen);
+
+  if (state.history.length === 0) {
+    list.innerHTML = `<div class="empty-queue">No completed jobs yet. You've got this.</div>`;
+    return;
+  }
+
+  list.innerHTML = state.history.map(h => `
+    <div class="history-item">
+      <div class="history-check">✓</div>
+      <div class="history-text">
+        <div class="history-name">${escHtml(h.name)}</div>
+        <div class="history-date">${formatDate(h.date)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  if (state.history.length > 0) {
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'clear-history-btn';
+    clearBtn.textContent = 'Clear history';
+    clearBtn.addEventListener('click', () => {
+      if (confirm('Clear all history?')) {
+        state.history = [];
+        saveState(state);
+        renderAll();
+      }
+    });
+    list.after(clearBtn);
+  }
+}
+
+function renderAll() {
+  renderHeader();
+  renderTodayCard();
+  renderQueue();
+  renderHistory();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Add job ─────────────────────────────────────────────────────────────
+document.getElementById('addBtn').addEventListener('click', addJob);
+document.getElementById('addInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addJob();
+});
+
+function addJob() {
+  const input = document.getElementById('addInput');
+  const val = input.value.trim();
+  if (!val) return;
+  if (state.queue.includes(val)) { input.select(); return; }
+  state.queue.push(val);
+
+  // Auto-suggest if no today job
+  if (!state.today || state.today.date !== todayStr()) {
+    suggestJob(false);
+  }
+
+  saveState(state);
+  input.value = '';
+  renderAll();
+}
+
+// ── Collapsibles ────────────────────────────────────────────────────────
+document.getElementById('queueHeader').addEventListener('click', () => {
+  state.queueOpen = !state.queueOpen;
+  saveState(state);
+  renderQueue();
+});
+
+document.getElementById('historyHeader').addEventListener('click', () => {
+  state.historyOpen = !state.historyOpen;
+  saveState(state);
+  renderHistory();
+});
+
+// ── Boot ────────────────────────────────────────────────────────────────
+// Auto-suggest for today if needed
+if (state.queue.length > 0 && (!state.today || state.today.date !== todayStr())) {
+  suggestJob(false);
+}
+
+renderAll();
+</script>
+</body>
+</html>
