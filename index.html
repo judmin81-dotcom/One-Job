@@ -377,7 +377,6 @@
   .recur-item-due.overdue { color: var(--clay); font-weight: 500; }
   .recur-item-due.due-today { color: var(--sage-dark); font-weight: 500; }
 
-  /* ── Edit button (shared) ── */
   .item-edit-btn {
     background: none; border: none; color: var(--ink-light);
     cursor: pointer; font-size: 13px; padding: 0 4px;
@@ -385,6 +384,14 @@
     line-height: 1;
   }
   .item-edit-btn:hover { opacity: 1; }
+
+  .item-today-btn {
+    background: none; border: none; color: var(--sage);
+    cursor: pointer; font-size: 16px; padding: 0 4px;
+    opacity: 0.5; transition: opacity 0.2s; flex-shrink: 0;
+    line-height: 1; font-weight: 700;
+  }
+  .item-today-btn:hover { opacity: 1; }
 
   /* ── Edit modal ── */
   .modal-overlay {
@@ -568,6 +575,38 @@
     opacity: 1;
   }
   .collapsible.collapsed { max-height: 0; opacity: 0; }
+  /* ── Toast ── */
+  #bonusToast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    background: var(--ink);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    padding: 11px 22px;
+    border-radius: 24px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 300;
+    opacity: 0;
+  }
+  #bonusToast.toast-in {
+    animation: toastIn 0.3s ease forwards;
+  }
+  #bonusToast.toast-out {
+    animation: toastOut 0.4s ease forwards;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateX(-50%) translateY(0); }
+    to   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  }
 </style>
 </head>
 <body>
@@ -724,7 +763,9 @@ if (!Array.isArray(state.queue))     state.queue = [];
 if (!Array.isArray(state.history))   state.history = [];
 
 // ── Date helpers ─────────────────────────────────────────────────────────
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' }); // YYYY-MM-DD
+}
 
 function formatDate(iso) {
   const d = new Date(iso + 'T00:00:00');
@@ -732,7 +773,7 @@ function formatDate(iso) {
 }
 
 function niceToday() {
-  return new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  return new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Brisbane', weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function addDays(iso, n) {
@@ -818,9 +859,44 @@ function suggestJob(forceNew) {
   saveState(state);
 }
 
+// ── Encouraging messages for bonus completions ────────────────────────────
+const BONUS_MSGS = [
+  "Look at you go! 🌿",
+  "One more off the list!",
+  "You're on a roll today.",
+  "That's the spirit.",
+  "Chipping away nicely.",
+  "Another one down. Nice work.",
+  "Making it look easy.",
+  "The house thanks you.",
+  "Can't stop, won't stop.",
+  "You're doing great.",
+  "Small jobs, big satisfaction.",
+  "Future you is grateful.",
+];
+
+function showToast(msg) {
+  let toast = document.getElementById('bonusToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'bonusToast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.remove('toast-out');
+  toast.classList.add('toast-in');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.classList.replace('toast-in', 'toast-out');
+  }, 2600);
+}
+
 // ── Mark done ─────────────────────────────────────────────────────────────
 function markDone() {
   if (!state.today || state.todayDone) return;
+
+  const today = todayStr();
+  const isFirstToday = state.lastDoneDate !== today;
 
   state.undoSnapshot = JSON.parse(JSON.stringify({
     queue: state.queue, history: state.history, today: state.today,
@@ -828,30 +904,37 @@ function markDone() {
     recurring: state.recurring,
   }));
 
-  state.todayDone = true;
-  const today = todayStr();
-
-  // Remove from queue (match by recurId if present, else name)
+  // Remove from queue
   state.queue = state.queue.filter(q =>
     state.today.recurId ? q.recurId !== state.today.recurId : q.name !== state.today.name
   );
 
-  // If recurring, update lastDoneDate + nextDueDate
+  // If recurring, update schedule
   if (state.today.recurId) {
     const r = state.recurring.find(x => x.id === state.today.recurId);
-    if (r) {
-      r.lastDoneDate = today;
-      r.nextDueDate  = addDays(today, r.intervalDays);
-    }
+    if (r) { r.lastDoneDate = today; r.nextDueDate = addDays(today, r.intervalDays); }
   }
 
   state.history.unshift({ name: state.today.name, date: today, recurring: !!state.today.recurId });
   if (state.history.length > 60) state.history = state.history.slice(0, 60);
 
-  checkAndUpdateStreak();
-  saveState(state);
-  renderAll();
-  spawnPetals();
+  if (isFirstToday) {
+    checkAndUpdateStreak();
+    state.todayDone = true;
+    saveState(state);
+    renderAll();
+    spawnPetals();
+  } else {
+    // Bonus completion — suggest next job immediately, show toast
+    const msg = BONUS_MSGS[Math.floor(Math.random() * BONUS_MSGS.length)];
+    state.today = null;
+    state.todayDone = false;
+    saveState(state);
+    suggestJob(false);
+    saveState(state);
+    renderAll();
+    showToast(msg);
+  }
 }
 
 // ── Undo ─────────────────────────────────────────────────────────────────
@@ -945,10 +1028,22 @@ function renderQueue() {
       <div class="queue-dot ${job.recurId ? 'recur' : ''}"></div>
       <div class="queue-name">${escHtml(job.name)}</div>
       ${job.recurId ? `<span class="queue-badge">↺ recurring</span>` : ''}
+      <button class="item-today-btn" data-qi="${i}" title="Do today">→</button>
       <button class="item-edit-btn" data-qi="${i}" title="Edit">✏️</button>
       <button class="queue-delete" data-i="${i}" title="Remove">×</button>
     </div>
   `).join('');
+
+  list.querySelectorAll('.item-today-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const i = parseInt(btn.dataset.qi);
+      const job = state.queue[i];
+      state.today = { name: job.name, date: todayStr(), recurId: job.recurId || null };
+      state.todayDone = false;
+      saveState(state); renderAll();
+    });
+  });
 
   list.querySelectorAll('.item-edit-btn').forEach(btn => {
     btn.addEventListener('click', e => {
